@@ -72,11 +72,15 @@ $$\text{MDD}_t = \min_{s \le t} \frac{V_s - \max_{u \le s} V_u}{\max_{u \le s} V
 
 即截至 $t$ 日，历史净值相对其历史峰值的最大跌幅。用负数表示，越接近 0 越好。每天会基于完整历史重算。
 
+> ⚠️ **口径切换说明**：自 `scripts/update_daily_total_value.py` 接管增量更新（2026-05 起），新追加的 `MaxDrawDown` 直接取自 `daily_summary_multi.csv` 的 `drawdown_pct`（÷ 100），由 trading bot 用动态维护的 `portfolio_peak` 计算。该值与上式公式（峰值取 `total_value` 的全历史 max）在 `total_value` 曾突破 `initial_value` 时会有差异——脚本接管前的历史行峰值约等于 `initial_value`，可能比新行口径偏小。
+
 **SharpeRatio**
 
 $$\text{Sharpe}_t = \frac{\overline{r - r_f}}{\sigma_{r - r_f}} \cdot \sqrt{252}$$
 
 其中 $r_f$ 为日度无风险利率，由年化值 `RF_ANNUAL` 按几何方式换算：$r_f = (1 + \text{RF\_ANNUAL})^{1/252} - 1$。样本为开仓至 $t$ 日的全部 `daily_return`。年化系数 252（按 A 股/美股交易日数；加密货币改 365）。**样本少于 20 个交易日时留空**，因为统计意义不足。
+
+> 当前 `scripts/update_daily_total_value.py` **暂未实现 Sharpe 计算**，新追加行的 `SharpeRatio` 列保持空。等满足 20 日样本阈值后再实现。
 
 ### 默认参数
 
