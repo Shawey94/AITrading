@@ -1,4 +1,37 @@
-# Portfolio Tracker
+# Adaptive Leveraged ETF Hedging Strategy
+**自适应杠杆 ETF 对冲策略**
+
+Dynamically rebalances between paired bull/bear leveraged ETFs, using moving-average signals to tilt exposure toward short-term
+momentum. Includes adaptive thresholds, drawdown-triggered capital injection, and profit reset.
+
+在标的的牛/熊杠杆 ETF 之间动态调仓，基于均线信号倾向短期趋势方向。
+内置自适应阈值引擎、回撤注资修复机制和止盈重置。
+
+---
+
+## Stack / 技术栈
+- Alpaca Markets (paper + live) · WebSocket + REST
+- Python · Daily-bar backtest sharing live signal logic
+- Multi-strategy orchestration on a single API client
+
+## Status / 状态
+- ✅ Backtest / 回测
+- ✅ Live via WebSocket (paper-tested) / 实盘 (纸面验证)
+- 🚧 Monitoring dashboard / 监控面板
+
+## Caveats / 风险提示
+⚠️ Leveraged ETFs · hedged ≠ risk-free · backtest ≠ future · educational use only
+⚠️ 杠杆 ETF · 对冲非无风险 · 回测非未来 · 仅供学习
+
+## Disclaimer / 免责声明
+For research and education only. Not investment advice. No warranty.
+Use at your own risk.
+
+仅供研究学习，不构成投资建议。使用者自行承担一切风险。
+
+All Rights Reserved
+For educational reference only
+
 
 ## 数据格式
 
