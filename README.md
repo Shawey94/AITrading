@@ -20,8 +20,8 @@ momentum. Includes adaptive thresholds, drawdown-triggered response mechanism, a
 - 🚧 Monitoring dashboard / 监控面板
 
 ## Caveats / 风险提示
-⚠️ Leveraged ETFs · hedged ≠ risk-free · backtest ≠ future · educational use only
-⚠️ 杠杆 ETF · 对冲非无风险 · 回测非未来 · 仅供学习
+-⚠️ Leveraged ETFs · hedged ≠ risk-free · backtest ≠ future · educational use only
+-⚠️ 杠杆 ETF · 对冲非无风险 · 回测非未来 · 仅供学习
 
 ## Disclaimer / 免责声明
 For research and education only. Not investment advice. No warranty.
