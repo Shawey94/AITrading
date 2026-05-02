@@ -76,7 +76,7 @@ $$\text{Sharpe}_t = \frac{\overline{r - r_f}}{\sigma_{r - r_f}} \cdot \sqrt{252}
 
 | 参数 | 默认值 | 在脚本中的位置 |
 |---|---|---|
-| 起始本金 | `1_000_000.00` | `INITIAL_VALUE` |
+| 起始本金 | `5000.00` | `INITIAL_VALUE` |
 | 年化无风险利率 | `0.0` | `RF_ANNUAL` |
 | 年化交易日数 | `252` | `TRADING_DAYS` |
 | 夏普最小样本 | `20` | `MIN_DAYS_FOR_SHARPE` |
