@@ -7,6 +7,12 @@ momentum. Includes adaptive thresholds, drawdown-triggered response mechanism, a
 在标的的牛/熊杠杆 ETF 之间动态调仓，基于均线信号倾向短期趋势方向。
 内置自适应阈值引擎、回撤应对机制和止盈重置。
 
+## 收益曲线 / Equity Curve
+
+![TSLA Strategy Equity Curve](charts/tsla_equity.png)
+
+> 数据源：[`data/daily_total_value.csv`](data/daily_total_value.csv)　·　重新生成图表：`python3 scripts/plot_equity_curve.py`
+
 ---
 
 ## Stack / 技术栈
