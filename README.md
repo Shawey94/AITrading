@@ -76,16 +76,15 @@ $$\text{MDD}_t = \min_{s \le t} \frac{V_s - \max_{u \le s} V_u}{\max_{u \le s} V
 
 $$\text{Sharpe}_t = \frac{\overline{r - r_f}}{\sigma_{r - r_f}} \cdot \sqrt{252}$$
 
-其中 $r_f$ 为日度无风险利率（默认 0），样本为开仓至 $t$ 日的全部 `daily_return`。年化系数 252（按 A 股/美股交易日数；加密货币改 365）。**样本少于 20 个交易日时留空**，因为统计意义不足。
+其中 $r_f$ 为日度无风险利率，由年化值 `RF_ANNUAL` 按几何方式换算：$r_f = (1 + \text{RF\_ANNUAL})^{1/252} - 1$。样本为开仓至 $t$ 日的全部 `daily_return`。年化系数 252（按 A 股/美股交易日数；加密货币改 365）。**样本少于 20 个交易日时留空**，因为统计意义不足。
 
 ### 默认参数
 
 | 参数 | 默认值 | 在脚本中的位置 |
 |---|---|---|
-| 起始本金 | `5000.00` | `INITIAL_VALUE` |
-| 年化无风险利率 | `0.0` | `RF_ANNUAL` |
+| 起始本金 | `2000.00` | `INITIAL_VALUE` |
+| 年化无风险利率 | `0.0368` | `RF_ANNUAL` |
 | 年化交易日数 | `252` | `TRADING_DAYS` |
 | 夏普最小样本 | `20` | `MIN_DAYS_FOR_SHARPE` |
 
-
-
+> `RF_ANNUAL = 0.0368` 取自美国 3 个月国债收益率（2026-05-01，3.68%），是 Sharpe 比率最常用的无风险利率基准。建议每季度（或随利率显著变化时）从 [FRED DGS3MO](https://fred.stlouisfed.org/series/DGS3MO) 或 [U.S. Treasury Daily Rates](https://home.treasury.gov/resource-center/data-chart-center/interest-rates) 同步一次。
