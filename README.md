@@ -1,9 +1,9 @@
-# Adaptive Leveraged ETF Hedging Strategy
-**自适应杠杆 ETF 对冲策略**
+# Leveraged ETF Hedging Strategy
+**杠杆 ETF 对冲套利策略**
 
-Dynamically rebalances between paired bull/bear leveraged ETFs. Includes adaptive thresholds, drawdown-triggered response mechanism, and profit reset.
+Dynamically rebalances between paired bull/bear leveraged ETFs. Includes drawdown-triggered response mechanism and profit reset.
 
-在标的的牛/熊杠杆 ETF 之间动态调仓。内置自适应阈值引擎、回撤应对机制和止盈重置。
+在标的的牛/熊杠杆 ETF 之间动态调仓。内置回撤应对机制和止盈重置。
 
 ## 收益曲线 / Equity Curve
 
