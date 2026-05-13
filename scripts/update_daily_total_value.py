@@ -13,26 +13,21 @@ Behaviour
     date           <- date
     total_value    <- total_value
     daily_return   <- (total_value - prev_total_value) / prev_total_value
-                      ('prev' = the most recent row in target, or 0 on first ever row)
     initial_value  <- initial_value
     P/L            <- pl_amount
-    P/L_percent    <- pl_percent / 100         (source stores as %, target stores as fraction)
-    MaxDrawDown    <- drawdown_pct / 100       (uses bot's running portfolio_peak as reference;
-                                                NOTE: differs from README formula which uses
-                                                rolling max of total_value. See README caveat.)
-    SharpeRatio    <- ""                       (blank: not yet implemented)
+    P/L_percent    <- pl_percent / 100         (source % → fraction)
+    MaxDrawDown    <- drawdown_pct / 100       (source % → fraction)
+    SharpeRatio    <- annualized Sharpe over all daily_returns up to this date,
+                      using RF_ANNUAL=0.0368 (geom → daily), 252 trading days.
+                      Empty if cumulative sample < MIN_DAYS_FOR_SHARPE (=20).
 
 Idempotent: re-running on the same day adds nothing.
-
-Exit codes
-----------
-0  rows appended, OR nothing-to-do
-1  source missing/malformed, or other unrecoverable error
 """
 from __future__ import annotations
 
 import argparse
 import csv
+import math
 import sys
 from pathlib import Path
 
@@ -45,13 +40,30 @@ TARGET_HEADER = [
     "initial_value", "P/L", "P/L_percent", "MaxDrawDown", "SharpeRatio",
 ]
 
+# Sharpe parameters (see README "默认参数")
+RF_ANNUAL = 0.0368
+TRADING_DAYS = 252
+MIN_DAYS_FOR_SHARPE = 20
+RF_DAILY = (1 + RF_ANNUAL) ** (1 / TRADING_DAYS) - 1
+
+
+def compute_sharpe(returns):
+    """Annualized Sharpe over all daily returns. Returns '' if <MIN samples or zero std."""
+    n = len(returns)
+    if n < MIN_DAYS_FOR_SHARPE:
+        return ""
+    excess = [r - RF_DAILY for r in returns]
+    mean = sum(excess) / n
+    var = sum((x - mean) ** 2 for x in excess) / (n - 1)
+    std = math.sqrt(var)
+    if std == 0:
+        return ""
+    return f"{(mean / std) * math.sqrt(TRADING_DAYS):.4f}"
+
 
 def find_default_source():
-    """Look for daily_summary_multi.csv in several plausible locations."""
     candidates = [
-        # Windows / native: parent of repo (C:\...\alpaca\)
         ROOT.parent / "daily_summary_multi.csv",
-        # Linux sandbox where AITrading and alpaca are sibling mounts
         ROOT.parent / "alpaca" / "daily_summary_multi.csv",
     ]
     for c in candidates:
@@ -96,25 +108,6 @@ def fnum(s):
     return float(s) if s not in ("", None) else 0.0
 
 
-def transform(src_row, prev_total):
-    total_value = fnum(src_row["total_value"])
-    if prev_total is None or prev_total == 0:
-        daily_return = 0.0
-    else:
-        daily_return = (total_value - prev_total) / prev_total
-    return {
-        "strategy":      STRATEGY,
-        "date":          src_row["date"],
-        "total_value":   f"{total_value:.6f}",
-        "daily_return":  f"{daily_return:.6f}",
-        "initial_value": f"{fnum(src_row['initial_value']):.2f}",
-        "P/L":           f"{fnum(src_row['pl_amount']):.6f}",
-        "P/L_percent":   f"{fnum(src_row['pl_percent']) / 100.0:.6f}",
-        "MaxDrawDown":   f"{fnum(src_row['drawdown_pct']) / 100.0:.6f}",
-        "SharpeRatio":   "",
-    }
-
-
 def main():
     args = parse_args()
     src_path = args.source or find_default_source()
@@ -131,14 +124,33 @@ def main():
     existing_dates = {r["date"] for r in dst_rows}
     prev_total = fnum(dst_rows[-1]["total_value"]) if dst_rows else None
 
+    # Build cumulative daily_return history from existing target rows
+    all_returns = [fnum(r["daily_return"]) for r in dst_rows]
+
     src_rows.sort(key=lambda r: r["date"])
     new_rows = []
     for r in src_rows:
         if r["date"] in existing_dates:
             continue
-        out = transform(r, prev_total)
+        total_value = fnum(r["total_value"])
+        if prev_total is None or prev_total == 0:
+            daily_return = 0.0
+        else:
+            daily_return = (total_value - prev_total) / prev_total
+        all_returns.append(daily_return)
+        out = {
+            "strategy":      STRATEGY,
+            "date":          r["date"],
+            "total_value":   f"{total_value:.6f}",
+            "daily_return":  f"{daily_return:.6f}",
+            "initial_value": f"{fnum(r['initial_value']):.2f}",
+            "P/L":           f"{fnum(r['pl_amount']):.6f}",
+            "P/L_percent":   f"{fnum(r['pl_percent']) / 100.0:.6f}",
+            "MaxDrawDown":   f"{fnum(r['drawdown_pct']) / 100.0:.6f}",
+            "SharpeRatio":   compute_sharpe(all_returns),
+        }
         new_rows.append(out)
-        prev_total = float(out["total_value"])
+        prev_total = total_value
         existing_dates.add(r["date"])
 
     if not new_rows:
@@ -156,7 +168,8 @@ def main():
 
     print(f"APPENDED {len(new_rows)} rows for {STRATEGY}:")
     for r in new_rows:
-        print(f"  {r['date']}  total={r['total_value']}  P/L={r['P/L']}  MDD={r['MaxDrawDown']}")
+        sharpe_str = r["SharpeRatio"] if r["SharpeRatio"] else "—"
+        print(f"  {r['date']}  total={r['total_value']}  P/L={r['P/L']}  MDD={r['MaxDrawDown']}  Sharpe={sharpe_str}")
     return 0
 
 
