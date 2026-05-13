@@ -10,6 +10,8 @@ Automated systematic trading.
 ![Equity Curve](charts/tsla_equity.png)
 
 > 数据：[`data/daily_total_value.csv`](data/daily_total_value.csv)　·　重画：`python3 scripts/plot_equity_curve.py`
+>
+> 历史 paper 阶段数据已归档至 [`data/daily_total_value_paper.csv`](data/daily_total_value_paper.csv)，不参与本曲线计算。
 
 ---
 
@@ -54,7 +56,7 @@ All Rights Reserved
 
 | 参数 | 默认值 | 说明 |
 |---|---|---|
-| 起始本金 | `2000.00` | `INITIAL_VALUE` |
+| 起始本金 | `5000.00` | `INITIAL_VALUE` |
 | 年化无风险利率 | `0.0368` | `RF_ANNUAL`（US 3M T-bill, 2026-05-01；季度同步一次） |
 | 年化交易日数 | `252` | `TRADING_DAYS` |
 | 夏普最小样本 | `20` | `MIN_DAYS_FOR_SHARPE` |

@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
-"""Generate equity curve PNG from data/daily_total_value.csv."""
+"""Generate equity curve PNG from data/daily_total_value.csv.
+
+Gracefully handles:
+- empty CSV (header only): exits 0 with a message, no PNG change
+- 1 row: produces a single-point chart
+- N rows: normal line chart
+"""
 import csv
+import sys
 from datetime import datetime
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -40,26 +47,23 @@ def plot(rows, out_path):
             markersize=4, markerfacecolor="white",
             markeredgecolor=line_color, label="Total Value")
 
-    # Initial value reference
     ax.axhline(initial, color="#7a7a7a", linestyle="--", linewidth=1,
                alpha=0.7, label=f"Initial ${initial:,.0f}")
 
-    # Fill between value and initial
-    ax.fill_between(dates, values, initial,
-                    where=[v >= initial for v in values],
-                    color="#2f7ed8", alpha=0.10, interpolate=True)
-    ax.fill_between(dates, values, initial,
-                    where=[v < initial for v in values],
-                    color="#d04848", alpha=0.10, interpolate=True)
+    if len(rows) > 1:
+        ax.fill_between(dates, values, initial,
+                        where=[v >= initial for v in values],
+                        color="#2f7ed8", alpha=0.10, interpolate=True)
+        ax.fill_between(dates, values, initial,
+                        where=[v < initial for v in values],
+                        color="#d04848", alpha=0.10, interpolate=True)
 
-    # Annotate start
     ax.annotate(f"Start\n${values[0]:,.0f}",
                 xy=(dates[0], values[0]),
                 xytext=(8, 14), textcoords="offset points",
                 fontsize=9, color="#444",
                 arrowprops=dict(arrowstyle="-", color="#aaa", lw=0.8))
 
-    # Annotate end with P/L
     pl_sign = "+" if final_pl >= 0 else ""
     ax.annotate(f"End ${final:,.2f}\nP/L {pl_sign}${final_pl:,.2f} ({pl_sign}{final_pl_pct:.2f}%)",
                 xy=(dates[-1], final),
@@ -68,7 +72,6 @@ def plot(rows, out_path):
                 fontsize=9.5, color=line_color, fontweight="bold",
                 arrowprops=dict(arrowstyle="->", color=line_color, lw=1))
 
-    # Annotate peak (only if distinct from start/end)
     if peak > initial and dates[values.index(peak)] not in (dates[0], dates[-1]):
         pi = values.index(peak)
         ax.annotate(f"Peak ${peak:,.2f}",
@@ -77,8 +80,7 @@ def plot(rows, out_path):
                     fontsize=8.5, color="#2c8a3a", ha="center",
                     arrowprops=dict(arrowstyle="-", color="#88c294", lw=0.8))
 
-    ax.set_title("TSLA Strategy — Daily Total Value",
-                 fontsize=14, fontweight="bold", pad=14)
+    ax.set_title("Daily Total Value", fontsize=14, fontweight="bold", pad=14)
     ax.set_xlabel("Date", fontsize=10)
     ax.set_ylabel("Total Value (USD)", fontsize=10)
     ax.grid(True, linestyle=":", alpha=0.45)
@@ -90,7 +92,6 @@ def plot(rows, out_path):
     fig.autofmt_xdate(rotation=0, ha="center")
 
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"${x:,.0f}"))
-
     ax.legend(loc="lower left", frameon=False, fontsize=9)
 
     fig.text(0.99, 0.01,
@@ -105,5 +106,8 @@ def plot(rows, out_path):
 
 if __name__ == "__main__":
     rows = load(SRC)
+    if not rows:
+        print(f"No data rows in {SRC} — skipping chart regeneration.")
+        sys.exit(0)
     rows.sort(key=lambda r: r["date"])
     plot(rows, OUT)
