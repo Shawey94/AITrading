@@ -1,9 +1,9 @@
-# Hedging Strategy
-**对冲套利策略**
+# Trading Strategy
+**量化交易策略**
 
-Dynamically rebalances paired long/short positions. Includes drawdown response and profit reset.
+Automated systematic trading.
 
-在配对的多/空仓位之间动态调仓。内置回撤应对机制和止盈重置。
+自动化系统交易。
 
 ## 收益曲线 / Equity Curve
 
@@ -23,8 +23,8 @@ Dynamically rebalances paired long/short positions. Includes drawdown response a
 - ✅ Monitoring dashboard / 监控面板
 
 ## Caveats / 风险提示
-- ⚠️ hedged ≠ risk-free · backtest ≠ future · educational use only
-- ⚠️ 对冲非无风险 · 回测非未来 · 仅供学习
+- ⚠️ backtest ≠ future · educational use only
+- ⚠️ 回测非未来 · 仅供学习
 
 ## Disclaimer / 免责声明
 For research and education only. Not investment advice. No warranty.
@@ -47,7 +47,7 @@ All Rights Reserved
 | `initial_value` | 起始本金 |
 | `P/L` | 累计盈亏（金额） |
 | `P/L_percent` | 累计盈亏（小数，例如 `-0.0832` 即 −8.32%） |
-| `MaxDrawDown` | 截至当日的历史最大回撤（取自 trading bot 维护的 `portfolio_peak`） |
+| `MaxDrawDown` | 截至当日的历史最大回撤 |
 | `SharpeRatio` | 截至当日的年化夏普比率，样本不足 20 个交易日时留空 |
 
 ## 默认参数
