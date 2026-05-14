@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Generate equity curve PNG from data/daily_total_value.csv.
+"""Generate equity curve PNG from a daily_total_value_*.csv file.
 
-Gracefully handles:
-- empty CSV (header only): exits 0 with a message, no PNG change
-- 1 row: produces a single-point chart
-- N rows: normal line chart
+Default source: data/daily_total_value_paper.csv
+Switch to live: --source data/daily_total_value_live.csv
+
+Handles 0 rows (skips) and 1 row (single-point chart).
 """
+import argparse
 import csv
 import sys
 from datetime import datetime
@@ -14,8 +15,8 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "data" / "daily_total_value.csv"
-OUT = ROOT / "charts" / "tsla_equity.png"
+DEFAULT_SRC = ROOT / "data" / "daily_total_value_paper.csv"
+DEFAULT_OUT = ROOT / "charts" / "tsla_equity.png"
 
 
 def load(path):
@@ -32,7 +33,7 @@ def load(path):
     return rows
 
 
-def plot(rows, out_path):
+def plot(rows, out_path, src_name):
     dates = [r["date"] for r in rows]
     values = [r["total_value"] for r in rows]
     initial = rows[0]["initial_value"]
@@ -58,8 +59,7 @@ def plot(rows, out_path):
                         where=[v < initial for v in values],
                         color="#d04848", alpha=0.10, interpolate=True)
 
-    ax.annotate(f"Start\n${values[0]:,.0f}",
-                xy=(dates[0], values[0]),
+    ax.annotate(f"Start\n${values[0]:,.0f}", xy=(dates[0], values[0]),
                 xytext=(8, 14), textcoords="offset points",
                 fontsize=9, color="#444",
                 arrowprops=dict(arrowstyle="-", color="#aaa", lw=0.8))
@@ -90,12 +90,11 @@ def plot(rows, out_path):
     ax.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=10))
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
     fig.autofmt_xdate(rotation=0, ha="center")
-
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"${x:,.0f}"))
     ax.legend(loc="lower left", frameon=False, fontsize=9)
 
     fig.text(0.99, 0.01,
-             f"Source: data/daily_total_value.csv  ·  Updated {rows[-1]['date']:%Y-%m-%d}",
+             f"Source: {src_name}  ·  Updated {rows[-1]['date']:%Y-%m-%d}",
              ha="right", va="bottom", fontsize=8, color="#888")
 
     fig.tight_layout()
@@ -104,10 +103,23 @@ def plot(rows, out_path):
     print(f"Saved {out_path}  ({len(rows)} points, final ${final:,.2f}, P/L {pl_sign}${final_pl:,.2f})")
 
 
+def parse_args():
+    p = argparse.ArgumentParser(description="Plot daily total value equity curve")
+    p.add_argument("--source", type=Path, default=DEFAULT_SRC,
+                   help=f"CSV file to plot (default: {DEFAULT_SRC.name})")
+    p.add_argument("--output", type=Path, default=DEFAULT_OUT,
+                   help=f"Output PNG path (default: {DEFAULT_OUT.name})")
+    return p.parse_args()
+
+
 if __name__ == "__main__":
-    rows = load(SRC)
+    args = parse_args()
+    if not args.source.exists():
+        print(f"Source not found: {args.source} — skipping.")
+        sys.exit(0)
+    rows = load(args.source)
     if not rows:
-        print(f"No data rows in {SRC} — skipping chart regeneration.")
+        print(f"No data rows in {args.source} — skipping chart regeneration.")
         sys.exit(0)
     rows.sort(key=lambda r: r["date"])
-    plot(rows, OUT)
+    plot(rows, args.output, args.source.name)

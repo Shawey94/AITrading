@@ -1,27 +1,17 @@
 #!/usr/bin/env python3
 """
-Append new TSLA rows from daily_summary_multi.csv into data/daily_total_value.csv.
+Append new TSLA rows from daily_summary_multi.csv into data/daily_total_value_{mode}.csv.
 
-Source : ../daily_summary_multi.csv  (trading bot output, one row per strategy per day)
-Target : data/daily_total_value.csv  (curated TSLA-only history with derived metrics)
+Default target : data/daily_total_value_paper.csv   (currently active mode)
+Switch to live : --target data/daily_total_value_live.csv
 
-Behaviour
----------
-* Filters source to strategy == "TSLA策略".
-* For each TSLA date NOT already in the target, appends a new row with:
-    strategy       <- "TSLA策略"
-    date           <- date
-    total_value    <- total_value
-    daily_return   <- (total_value - prev_total_value) / prev_total_value
-    initial_value  <- initial_value
-    P/L            <- pl_amount
-    P/L_percent    <- pl_percent / 100         (source % → fraction)
-    MaxDrawDown    <- drawdown_pct / 100       (source % → fraction)
-    SharpeRatio    <- annualized Sharpe over all daily_returns up to this date,
-                      using RF_ANNUAL=0.0368 (geom → daily), 252 trading days.
-                      Empty if cumulative sample < MIN_DAYS_FOR_SHARPE (=20).
+Filters source to strategy == "TSLA策略" and appends only dates not yet in the target.
 
-Idempotent: re-running on the same day adds nothing.
+Derived columns:
+  daily_return : (total_value - prev_total_value) / prev_total_value
+  P/L_percent  : source pl_percent / 100
+  MaxDrawDown  : source drawdown_pct / 100
+  SharpeRatio  : annualized; empty until cumulative sample ≥ MIN_DAYS_FOR_SHARPE (=20).
 """
 from __future__ import annotations
 
@@ -32,7 +22,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_DST = ROOT / "data" / "daily_total_value.csv"
+DEFAULT_DST = ROOT / "data" / "daily_total_value_paper.csv"
 
 STRATEGY = "TSLA策略"
 TARGET_HEADER = [
@@ -40,7 +30,6 @@ TARGET_HEADER = [
     "initial_value", "P/L", "P/L_percent", "MaxDrawDown", "SharpeRatio",
 ]
 
-# Sharpe parameters (see README "默认参数")
 RF_ANNUAL = 0.0368
 TRADING_DAYS = 252
 MIN_DAYS_FOR_SHARPE = 20
@@ -48,7 +37,6 @@ RF_DAILY = (1 + RF_ANNUAL) ** (1 / TRADING_DAYS) - 1
 
 
 def compute_sharpe(returns):
-    """Annualized Sharpe over all daily returns. Returns '' if <MIN samples or zero std."""
     n = len(returns)
     if n < MIN_DAYS_FOR_SHARPE:
         return ""
@@ -62,22 +50,19 @@ def compute_sharpe(returns):
 
 
 def find_default_source():
-    candidates = [
-        ROOT.parent / "daily_summary_multi.csv",
-        ROOT.parent / "alpaca" / "daily_summary_multi.csv",
-    ]
-    for c in candidates:
+    for c in (ROOT.parent / "daily_summary_multi.csv",
+              ROOT.parent / "alpaca" / "daily_summary_multi.csv"):
         if c.exists():
             return c
     return None
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Append TSLA rows to daily_total_value.csv")
+    p = argparse.ArgumentParser(description="Append TSLA rows to daily_total_value_{paper,live}.csv")
     p.add_argument("--source", type=Path, default=None,
                    help="Path to daily_summary_multi.csv (auto-detected if omitted)")
     p.add_argument("--target", type=Path, default=DEFAULT_DST,
-                   help="Path to daily_total_value.csv inside the repo")
+                   help=f"Target CSV (default: {DEFAULT_DST.name})")
     return p.parse_args()
 
 
@@ -123,8 +108,6 @@ def main():
     header, dst_rows = read_target(dst_path)
     existing_dates = {r["date"] for r in dst_rows}
     prev_total = fnum(dst_rows[-1]["total_value"]) if dst_rows else None
-
-    # Build cumulative daily_return history from existing target rows
     all_returns = [fnum(r["daily_return"]) for r in dst_rows]
 
     src_rows.sort(key=lambda r: r["date"])
@@ -166,7 +149,7 @@ def main():
         for r in new_rows:
             writer.writerow(r)
 
-    print(f"APPENDED {len(new_rows)} rows for {STRATEGY}:")
+    print(f"APPENDED {len(new_rows)} rows for {STRATEGY} → {dst_path.name}:")
     for r in new_rows:
         sharpe_str = r["SharpeRatio"] if r["SharpeRatio"] else "—"
         print(f"  {r['date']}  total={r['total_value']}  P/L={r['P/L']}  MDD={r['MaxDrawDown']}  Sharpe={sharpe_str}")
