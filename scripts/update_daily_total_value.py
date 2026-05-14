@@ -8,7 +8,9 @@ Switch to live : --target data/daily_total_value_live.csv
 Filters source to strategy == "TSLA策略" and appends only dates not yet in the target.
 
 Derived columns:
-  daily_return : (total_value - prev_total_value) / prev_total_value
+  daily_return : (total_value_t - daily_injection_t - total_value_{t-1}) / total_value_{t-1}
+                 where daily_injection_t = initial_value_t - initial_value_{t-1}.
+                 Time-weighted: capital added on drawdown days isn't counted as return.
   P/L_percent  : source pl_percent / 100
   MaxDrawDown  : source drawdown_pct / 100
   SharpeRatio  : annualized; empty until cumulative sample ≥ MIN_DAYS_FOR_SHARPE (=20).
@@ -108,6 +110,7 @@ def main():
     header, dst_rows = read_target(dst_path)
     existing_dates = {r["date"] for r in dst_rows}
     prev_total = fnum(dst_rows[-1]["total_value"]) if dst_rows else None
+    prev_initial = fnum(dst_rows[-1]["initial_value"]) if dst_rows else None
     all_returns = [fnum(r["daily_return"]) for r in dst_rows]
 
     src_rows.sort(key=lambda r: r["date"])
@@ -116,17 +119,19 @@ def main():
         if r["date"] in existing_dates:
             continue
         total_value = fnum(r["total_value"])
+        curr_initial = fnum(r["initial_value"])
         if prev_total is None or prev_total == 0:
             daily_return = 0.0
         else:
-            daily_return = (total_value - prev_total) / prev_total
+            daily_injection = (curr_initial - prev_initial) if prev_initial is not None else 0.0
+            daily_return = (total_value - daily_injection - prev_total) / prev_total
         all_returns.append(daily_return)
         out = {
             "strategy":      STRATEGY,
             "date":          r["date"],
             "total_value":   f"{total_value:.6f}",
             "daily_return":  f"{daily_return:.6f}",
-            "initial_value": f"{fnum(r['initial_value']):.2f}",
+            "initial_value": f"{curr_initial:.2f}",
             "P/L":           f"{fnum(r['pl_amount']):.6f}",
             "P/L_percent":   f"{fnum(r['pl_percent']) / 100.0:.6f}",
             "MaxDrawDown":   f"{fnum(r['drawdown_pct']) / 100.0:.6f}",
@@ -134,6 +139,7 @@ def main():
         }
         new_rows.append(out)
         prev_total = total_value
+        prev_initial = curr_initial
         existing_dates.add(r["date"])
 
     if not new_rows:
@@ -152,7 +158,7 @@ def main():
     print(f"APPENDED {len(new_rows)} rows for {STRATEGY} → {dst_path.name}:")
     for r in new_rows:
         sharpe_str = r["SharpeRatio"] if r["SharpeRatio"] else "—"
-        print(f"  {r['date']}  total={r['total_value']}  P/L={r['P/L']}  MDD={r['MaxDrawDown']}  Sharpe={sharpe_str}")
+        print(f"  {r['date']}  total={r['total_value']}  daily_ret={r['daily_return']}  P/L={r['P/L']}  Sharpe={sharpe_str}")
     return 0
 
 
