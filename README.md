@@ -47,12 +47,17 @@ All Rights Reserved
 |---|---|
 | `date` | 交易日 |
 | `total_value` | 当日盘后总市值 |
-| `daily_return` | 相对前一交易日的简单收益率 |
-| `initial_value` | 起始本金 |
+| `daily_return` | 时间加权日度收益率（已扣除当日注入资本，下文 TWR 公式） |
+| `initial_value` | 起始本金（含累计注入） |
+| `Injection` | 当日补仓注入金额（$）；无注入则为 0 |
 | `P/L` | 累计盈亏（金额） |
 | `P/L_percent` | 累计盈亏（小数，例如 `-0.0832` 即 −8.32%） |
 | `MaxDrawDown` | 截至当日的历史最大回撤 |
 | `SharpeRatio` | 截至当日的年化夏普比率，样本不足 20 个交易日时留空 |
+
+**Time-weighted daily_return (TWR)**：
+$$r_t = \frac{V_t - I_t - V_{t-1}}{V_{t-1}}$$
+其中 $V_t$ 为当日 `total_value`，$I_t$ 为当日 `Injection`，从源 `daily_summary_multi.csv` 的 `ddi_total_injected` 累计差值得来。补仓日的 $I_t > 0$，不被算作"赚的"。
 
 ## 默认参数
 

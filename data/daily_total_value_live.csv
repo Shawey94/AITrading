@@ -1,1 +1,1 @@
-strategy,date,total_value,daily_return,initial_value,P/L,P/L_percent,MaxDrawDown,SharpeRatio
+strategy,date,total_value,daily_return,initial_value,Injection,P/L,P/L_percent,MaxDrawDown,SharpeRatio
