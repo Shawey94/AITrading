@@ -2,19 +2,27 @@
 """
 Append new TSLA rows from daily_summary_multi.csv into data/daily_total_value_{mode}.csv.
 
-Default target : data/daily_total_value_paper.csv   (currently active mode)
-Switch to live : --target data/daily_total_value_live.csv
+Default target : data/daily_total_value_live.csv  (currently active mode)
+Override       : --target data/daily_total_value_paper.csv
 
 Filters source to strategy == "TSLA策略" and appends only dates not yet in the target.
 
-Derived columns:
-  daily_return : (total_value_t - Injection_t - total_value_{t-1}) / total_value_{t-1}
-                 Time-weighted: capital added on drawdown days isn't counted as return.
-  Injection    : daily capital injection in $ — change in source's ddi_total_injected
-                 (cumulative DDI) from previous row to this row. 0 on non-injection days.
-  P/L_percent  : source pl_percent / 100
-  MaxDrawDown  : source drawdown_pct / 100
-  SharpeRatio  : annualized; empty until cumulative sample ≥ MIN_DAYS_FOR_SHARPE (=20).
+Capital convention (overrides bot's bookkeeping)
+------------------------------------------------
+* STARTING_CAPITAL is the initial deposit, fixed at $2000.
+* initial_value_t = STARTING_CAPITAL + sum(Injection_{≤t})  — grows ONLY with
+  external DDI injections, NOT with profit-resets. (The bot's `initial_value`
+  also includes locked-in profits, which inflates the principal artificially.)
+* P/L_t          = total_value_t - initial_value_t       — true gain on capital at risk
+* P/L_percent_t  = P/L_t / initial_value_t
+
+Derived metrics
+---------------
+  daily_return  : (total_value_t - Injection_t - total_value_{t-1}) / total_value_{t-1}
+                  Time-weighted: capital added isn't counted as return.
+  Injection     : daily $ injection — change in source's ddi_total_injected.
+  MaxDrawDown   : source drawdown_pct / 100   (bot's running portfolio_peak ref)
+  SharpeRatio   : annualized; empty until cumulative sample ≥ MIN_DAYS_FOR_SHARPE (=20).
 """
 from __future__ import annotations
 
@@ -28,6 +36,8 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DST = ROOT / "data" / "daily_total_value_live.csv"
 
 STRATEGY = "TSLA策略"
+STARTING_CAPITAL = 2000.00
+
 TARGET_HEADER = [
     "strategy", "date", "total_value", "daily_return",
     "initial_value", "Injection", "P/L", "P/L_percent",
@@ -77,8 +87,7 @@ def read_source(path):
         rows = list(csv.DictReader(f))
     if not rows:
         sys.exit(f"ERROR: source is empty: {path}")
-    needed = {"date", "strategy", "total_value", "initial_value",
-              "pl_amount", "pl_percent", "drawdown_pct", "ddi_total_injected"}
+    needed = {"date", "strategy", "total_value", "drawdown_pct", "ddi_total_injected"}
     missing = needed - set(rows[0].keys())
     if missing:
         sys.exit(f"ERROR: source missing columns: {sorted(missing)}")
@@ -112,8 +121,7 @@ def main():
     header, dst_rows = read_target(dst_path)
     existing_dates = {r["date"] for r in dst_rows}
     prev_total = fnum(dst_rows[-1]["total_value"]) if dst_rows else None
-    # Cumulative DDI to date = sum of all prior Injection rows (or 0 if target empty)
-    prev_ddi_cum = sum(fnum(r.get("Injection", "0")) for r in dst_rows)
+    prev_ddi_cum = sum(fnum(r.get("Injection", 0)) for r in dst_rows)
     all_returns = [fnum(r["daily_return"]) for r in dst_rows]
 
     src_rows.sort(key=lambda r: r["date"])
@@ -124,20 +132,27 @@ def main():
         total_value = fnum(r["total_value"])
         curr_ddi_cum = fnum(r["ddi_total_injected"])
         daily_injection = curr_ddi_cum - prev_ddi_cum
+
         if prev_total is None or prev_total == 0:
             daily_return = 0.0
         else:
             daily_return = (total_value - daily_injection - prev_total) / prev_total
         all_returns.append(daily_return)
+
+        # Override bot's initial_value with our anchored version
+        initial_value = STARTING_CAPITAL + curr_ddi_cum
+        pl = total_value - initial_value
+        pl_pct = pl / initial_value if initial_value else 0.0
+
         out = {
             "strategy":      STRATEGY,
             "date":          r["date"],
             "total_value":   f"{total_value:.6f}",
             "daily_return":  f"{daily_return:.6f}",
-            "initial_value": f"{fnum(r['initial_value']):.2f}",
+            "initial_value": f"{initial_value:.2f}",
             "Injection":     f"{daily_injection:.4f}",
-            "P/L":           f"{fnum(r['pl_amount']):.6f}",
-            "P/L_percent":   f"{fnum(r['pl_percent']) / 100.0:.6f}",
+            "P/L":           f"{pl:.6f}",
+            "P/L_percent":   f"{pl_pct:.6f}",
             "MaxDrawDown":   f"{fnum(r['drawdown_pct']) / 100.0:.6f}",
             "SharpeRatio":   compute_sharpe(all_returns),
         }
@@ -163,7 +178,7 @@ def main():
     for r in new_rows:
         sharpe_str = r["SharpeRatio"] if r["SharpeRatio"] else "—"
         inj_str = f"+${r['Injection']}" if float(r["Injection"]) > 0 else "—"
-        print(f"  {r['date']}  total={r['total_value']}  inj={inj_str}  daily_ret={r['daily_return']}  Sharpe={sharpe_str}")
+        print(f"  {r['date']}  total={r['total_value']}  init={r['initial_value']}  inj={inj_str}  P/L={r['P/L']}  Sharpe={sharpe_str}")
     return 0
 
 
