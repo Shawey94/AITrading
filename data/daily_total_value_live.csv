@@ -1,1 +1,3 @@
 strategy,date,total_value,daily_return,initial_value,Injection,P/L,P/L_percent,MaxDrawDown,SharpeRatio
+TSLA策略,2026-05-14,0.000000,0.000000,2000.00,0.0000,-2000.000000,-1.000000,0.000000,
+TSLA策略,2026-05-15,1995.075309,0.000000,2000.00,0.0000,-4.924691,-0.002462,-0.002458,
