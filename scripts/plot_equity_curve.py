@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_SRC = ROOT / "data" / "daily_total_value_paper.csv"
+DEFAULT_SRC = ROOT / "data" / "daily_total_value_live.csv"
 DEFAULT_OUT = ROOT / "charts" / "tsla_equity.png"
 
 

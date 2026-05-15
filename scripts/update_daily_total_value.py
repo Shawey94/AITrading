@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_DST = ROOT / "data" / "daily_total_value_paper.csv"
+DEFAULT_DST = ROOT / "data" / "daily_total_value_live.csv"
 
 STRATEGY = "TSLA策略"
 TARGET_HEADER = [

@@ -10,8 +10,8 @@ Automated systematic trading.
 ![Equity Curve](charts/tsla_equity.png)
 
 > 数据：
-> - Paper：[`data/daily_total_value_paper.csv`](data/daily_total_value_paper.csv)（当前活跃）
-> - Live：[`data/daily_total_value_live.csv`](data/daily_total_value_live.csv)（实盘启用后写入）
+> - Live：[`data/daily_total_value_live.csv`](data/daily_total_value_live.csv)（当前活跃 — 2026-05 起实盘）
+> - Paper：[`data/daily_total_value_paper.csv`](data/daily_total_value_paper.csv)（历史归档，2026-04 至 2026-05-14）
 >
 > 重画：`python3 scripts/plot_equity_curve.py --source data/daily_total_value_<paper|live>.csv`
 
@@ -47,23 +47,21 @@ All Rights Reserved
 |---|---|
 | `date` | 交易日 |
 | `total_value` | 当日盘后总市值 |
-| `daily_return` | 时间加权日度收益率（已扣除当日注入资本，下文 TWR 公式） |
+| `daily_return` | 时间加权日度收益率（已扣除当日 Injection） |
 | `initial_value` | 起始本金（含累计注入） |
-| `Injection` | 当日补仓注入金额（$）；无注入则为 0 |
+| `Injection` | 当日补仓注入金额（$）；无注入则 0 |
 | `P/L` | 累计盈亏（金额） |
-| `P/L_percent` | 累计盈亏（小数，例如 `-0.0832` 即 −8.32%） |
+| `P/L_percent` | 累计盈亏（小数） |
 | `MaxDrawDown` | 截至当日的历史最大回撤 |
 | `SharpeRatio` | 截至当日的年化夏普比率，样本不足 20 个交易日时留空 |
 
-**Time-weighted daily_return (TWR)**：
-$$r_t = \frac{V_t - I_t - V_{t-1}}{V_{t-1}}$$
-其中 $V_t$ 为当日 `total_value`，$I_t$ 为当日 `Injection`，从源 `daily_summary_multi.csv` 的 `ddi_total_injected` 累计差值得来。补仓日的 $I_t > 0$，不被算作"赚的"。
+**Time-weighted daily_return**：$r_t = (V_t - I_t - V_{t-1}) / V_{t-1}$，其中 $I_t$ 为当日 `Injection`（来自源 `ddi_total_injected` 增量）。
 
 ## 默认参数
 
 | 参数 | 默认值 | 说明 |
 |---|---|---|
-| 起始本金 | paper `2000.00` / live `5000.00` | `INITIAL_VALUE` |
+| 起始本金 | live `5000.00` / paper `2000.00` | `INITIAL_VALUE`（实际值由源 CSV 决定） |
 | 年化无风险利率 | `0.0368` | `RF_ANNUAL`（US 3M T-bill, 2026-05-01；季度同步一次） |
 | 年化交易日数 | `252` | `TRADING_DAYS` |
 | 夏普最小样本 | `20` | `MIN_DAYS_FOR_SHARPE` |
