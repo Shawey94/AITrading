@@ -130,6 +130,9 @@ def main():
         if r["date"] in existing_dates:
             continue
         total_value = fnum(r["total_value"])
+        if total_value == 0:
+            # skip bot startup / placeholder rows where positions weren't opened
+            continue
         curr_ddi_cum = fnum(r["ddi_total_injected"])
         daily_injection = curr_ddi_cum - prev_ddi_cum
 
