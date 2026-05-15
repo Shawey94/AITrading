@@ -57,7 +57,11 @@ All Rights Reserved
 
 **关键修正**：脚本**不**使用源 CSV 的 `initial_value` / `pl_amount` / `pl_percent`，因为 bot 的 profit-reset 机制会把已实现盈利累加到它的 `initial_value` 里，扭曲了"投入的本金"和"赚的钱"的区分。我们的 `initial_value` 只反映 STARTING_CAPITAL 加上累计外部 Injection。
 
-**Time-weighted daily_return**：$r_t = (V_t - I_t - V_{t-1}) / V_{t-1}$，其中 $I_t$ 为当日 `Injection`。
+**Time-weighted daily_return**（即 `daily_return = (V_t − I_t − V_{t-1}) / V_{t-1}`）：
+
+$$r_t = \frac{V_t - I_t - V_{t-1}}{V_{t-1}}$$
+
+其中 $V_t$ 为第 $t$ 日的 `total_value`，$I_t$ 为当日 `Injection`（来自源 CSV 的 `ddi_total_injected` 增量）。补仓日 $I_t > 0$，不会被算作收益。
 
 ## 默认参数
 
