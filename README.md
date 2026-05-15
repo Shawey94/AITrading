@@ -55,8 +55,6 @@ All Rights Reserved
 | `MaxDrawDown` | 截至当日的历史最大回撤 |
 | `SharpeRatio` | 截至当日的年化夏普比率，样本不足 20 个交易日时留空 |
 
-**关键修正**：脚本**不**使用源 CSV 的 `initial_value` / `pl_amount` / `pl_percent`，因为 bot 的 profit-reset 机制会把已实现盈利累加到它的 `initial_value` 里，扭曲了"投入的本金"和"赚的钱"的区分。我们的 `initial_value` 只反映 STARTING_CAPITAL 加上累计外部 Injection。
-
 **Time-weighted daily_return**（即 `daily_return = (V_t − I_t − V_{t-1}) / V_{t-1}`）：
 
 $$r_t = \frac{V_t - I_t - V_{t-1}}{V_{t-1}}$$
