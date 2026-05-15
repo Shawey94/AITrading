@@ -48,7 +48,7 @@ All Rights Reserved
 | `date` | 交易日 |
 | `total_value` | 当日盘后总市值 |
 | `daily_return` | 时间加权日度收益率（已扣除当日 Injection） |
-| `initial_value` | 起始本金（含累计注入） |
+| `initial_value` | 起始本金 + 累计 Injection（补仓后自动抬升） |
 | `Injection` | 当日补仓注入金额（$）；无注入则 0 |
 | `P/L` | 累计盈亏（金额） |
 | `P/L_percent` | 累计盈亏（小数） |
@@ -57,11 +57,13 @@ All Rights Reserved
 
 **Time-weighted daily_return**：$r_t = (V_t - I_t - V_{t-1}) / V_{t-1}$，其中 $I_t$ 为当日 `Injection`（来自源 `ddi_total_injected` 增量）。
 
+**initial_value 增长**：每发生一次补仓，bot 把注入额加到 `initial_value` 上。所以 `initial_value_t = STARTING_CAPITAL + sum(Injection_{≤t})`（除非另有 profit-reset 重设 baseline）。
+
 ## 默认参数
 
 | 参数 | 默认值 | 说明 |
 |---|---|---|
-| 起始本金 | live `5000.00` / paper `2000.00` | `INITIAL_VALUE`（实际值由源 CSV 决定） |
+| 起始本金 | live `2000.00` / paper `2000.00` | `INITIAL_VALUE`（首日值，实盘补仓时自动上调） |
 | 年化无风险利率 | `0.0368` | `RF_ANNUAL`（US 3M T-bill, 2026-05-01；季度同步一次） |
 | 年化交易日数 | `252` | `TRADING_DAYS` |
 | 夏普最小样本 | `20` | `MIN_DAYS_FOR_SHARPE` |
