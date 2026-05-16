@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Generate equity curve PNG from a daily_total_value_*.csv file.
 
-Default source: data/daily_total_value_paper.csv
-Switch to live: --source data/daily_total_value_live.csv
+Default source: data/daily_total_value_live.csv
+Override     : --source data/daily_total_value_paper.csv
 
-Handles 0 rows (skips) and 1 row (single-point chart).
+Handles 0 rows (skips), 1-5 rows (fixed ticks at each date), N>5 rows (auto).
 """
 import argparse
 import csv
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -45,7 +45,7 @@ def plot(rows, out_path, src_name):
     fig, ax = plt.subplots(figsize=(11, 5.5), dpi=130)
     line_color = "#2f7ed8" if final >= initial else "#d04848"
     ax.plot(dates, values, color=line_color, linewidth=2.2, marker="o",
-            markersize=4, markerfacecolor="white",
+            markersize=6, markerfacecolor="white",
             markeredgecolor=line_color, label="Total Value")
 
     ax.axhline(initial, color="#7a7a7a", linestyle="--", linewidth=1,
@@ -72,7 +72,7 @@ def plot(rows, out_path, src_name):
                 fontsize=9.5, color=line_color, fontweight="bold",
                 arrowprops=dict(arrowstyle="->", color=line_color, lw=1))
 
-    if peak > initial and dates[values.index(peak)] not in (dates[0], dates[-1]):
+    if len(rows) > 2 and peak > initial and dates[values.index(peak)] not in (dates[0], dates[-1]):
         pi = values.index(peak)
         ax.annotate(f"Peak ${peak:,.2f}",
                     xy=(dates[pi], peak),
@@ -87,7 +87,17 @@ def plot(rows, out_path, src_name):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
-    ax.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=10))
+    # --- x-axis ticks: scale to the data ---
+    if len(rows) == 1:
+        # Single point: pad ±1 day so the marker isn't on the axis edge
+        ax.set_xlim(dates[0] - timedelta(days=1), dates[0] + timedelta(days=1))
+        ax.xaxis.set_major_locator(mdates.FixedLocator([mdates.date2num(dates[0])]))
+    elif len(rows) <= 10:
+        # Few points: tick at each actual data date
+        ax.xaxis.set_major_locator(mdates.FixedLocator([mdates.date2num(d) for d in dates]))
+    else:
+        ax.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=10))
+
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
     fig.autofmt_xdate(rotation=0, ha="center")
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"${x:,.0f}"))

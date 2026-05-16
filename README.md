@@ -59,7 +59,7 @@ All Rights Reserved
 
 $$r_t = \frac{V_t - I_t - V_{t-1}}{V_{t-1}}$$
 
-其中 $V_t$ 为第 $t$ 日的 `total_value`，$I_t$ 为当日 `Injection`（来自源 CSV 的 `ddi_total_injected` 增量）。补仓日 $I_t > 0$，不会被算作收益。
+其中 `V_t` 为第 `t` 日的 `total_value`，`I_t` 为当日 `Injection`（来自源 CSV 的 `ddi_total_injected` 增量）。
 
 ## 默认参数
 
