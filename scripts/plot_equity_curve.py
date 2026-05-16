@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from matplotlib.ticker import FixedLocator
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SRC = ROOT / "data" / "daily_total_value_live.csv"
@@ -91,10 +92,10 @@ def plot(rows, out_path, src_name):
     if len(rows) == 1:
         # Single point: pad ±1 day so the marker isn't on the axis edge
         ax.set_xlim(dates[0] - timedelta(days=1), dates[0] + timedelta(days=1))
-        ax.xaxis.set_major_locator(mdates.FixedLocator([mdates.date2num(dates[0])]))
+        ax.xaxis.set_major_locator(FixedLocator([mdates.date2num(dates[0])]))
     elif len(rows) <= 10:
         # Few points: tick at each actual data date
-        ax.xaxis.set_major_locator(mdates.FixedLocator([mdates.date2num(d) for d in dates]))
+        ax.xaxis.set_major_locator(FixedLocator([mdates.date2num(d) for d in dates]))
     else:
         ax.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=10))
 
