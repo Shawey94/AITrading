@@ -1,0 +1,12 @@
+# Credentials — NEVER commit. Holds the GitHub PAT used by the daily update task.
+GithubAITradingRepository.txt
+*.token
+*.pat
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
