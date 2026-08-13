@@ -49,6 +49,10 @@ TRADING_DAYS = 252
 MIN_DAYS_FOR_SHARPE = 20
 RF_DAILY = (1 + RF_ANNUAL) ** (1 / TRADING_DAYS) - 1
 
+# Cash tolerance (USD) for float comparisons
+EPS = 0.005
+INJ_COL = "ddi_total_injected"
+
 
 def compute_sharpe(returns):
     n = len(returns)
@@ -87,10 +91,14 @@ def read_source(path):
         rows = list(csv.DictReader(f))
     if not rows:
         sys.exit(f"ERROR: source is empty: {path}")
-    needed = {"date", "strategy", "total_value", "drawdown_pct", "ddi_total_injected"}
+    needed = {"date", "strategy", "total_value", "drawdown_pct"}
     missing = needed - set(rows[0].keys())
     if missing:
         sys.exit(f"ERROR: source missing columns: {sorted(missing)}")
+    # The paper archive predates DDI, so a missing injection column degrades to
+    # "no injections" rather than aborting the whole run.
+    if INJ_COL not in rows[0]:
+        print(f"WARN: source has no '{INJ_COL}' column — all injections treated as 0.")
     return [r for r in rows if r["strategy"] == STRATEGY]
 
 
@@ -124,8 +132,22 @@ def main():
     prev_ddi_cum = sum(fnum(r.get("Injection", 0)) for r in dst_rows)
     all_returns = [fnum(r["daily_return"]) for r in dst_rows]
 
+    # Every row's initial_value is an independent witness of the running cumulative
+    # injection. Checking all of them (not just the last) also catches an edited
+    # interior row. Disagreement means the CSV was hand-edited — fail loudly rather
+    # than silently append on top of a corrupt cost basis.
+    running = 0.0
+    for r in dst_rows:
+        running += fnum(r.get("Injection", 0))
+        witness = fnum(r.get("initial_value")) - STARTING_CAPITAL
+        if abs(witness - running) > EPS:
+            sys.exit(f"ERROR: target inconsistent at {r['date']} — cumulative Injection="
+                     f"{running:.2f} but initial_value-{STARTING_CAPITAL:.2f}={witness:.2f}. "
+                     f"Refusing to append on a corrupt cost basis.")
+
     src_rows.sort(key=lambda r: r["date"])
     new_rows = []
+    injections = []
     for r in src_rows:
         if r["date"] in existing_dates:
             continue
@@ -133,8 +155,18 @@ def main():
         if total_value == 0:
             # skip bot startup / placeholder rows where positions weren't opened
             continue
-        curr_ddi_cum = fnum(r["ddi_total_injected"])
+        curr_ddi_cum = fnum(r.get(INJ_COL)) if INJ_COL in r else prev_ddi_cum
         daily_injection = curr_ddi_cum - prev_ddi_cum
+        if daily_injection < -EPS:
+            # A cumulative counter must never shrink. Trusting it would lower the cost
+            # basis and manufacture phantom profit, so hold the previous basis instead.
+            print(f"WARN: {r['date']} {INJ_COL} went backwards "
+                  f"({prev_ddi_cum:.2f} → {curr_ddi_cum:.2f}) — treating as 0. "
+                  f"Did the bot reset its counter?")
+            daily_injection = 0.0
+            curr_ddi_cum = prev_ddi_cum
+        elif abs(daily_injection) <= EPS:
+            daily_injection = 0.0
 
         if prev_total is None or prev_total == 0:
             daily_return = 0.0
@@ -160,6 +192,8 @@ def main():
             "SharpeRatio":   compute_sharpe(all_returns),
         }
         new_rows.append(out)
+        if daily_injection:
+            injections.append((r["date"], daily_injection, initial_value))
         prev_total = total_value
         prev_ddi_cum = curr_ddi_cum
         existing_dates.add(r["date"])
@@ -173,7 +207,11 @@ def main():
         writer = csv.DictWriter(f, fieldnames=TARGET_HEADER)
         writer.writeheader()
         for r in dst_rows:
-            writer.writerow({k: r.get(k, "") for k in TARGET_HEADER})
+            row = {k: r.get(k, "") for k in TARGET_HEADER}
+            # Rows written before the Injection column existed default to 0.
+            if row["Injection"] == "":
+                row["Injection"] = "0.0000"
+            writer.writerow(row)
         for r in new_rows:
             writer.writerow(r)
 
@@ -182,6 +220,14 @@ def main():
         sharpe_str = r["SharpeRatio"] if r["SharpeRatio"] else "—"
         inj_str = f"+${r['Injection']}" if float(r["Injection"]) > 0 else "—"
         print(f"  {r['date']}  total={r['total_value']}  init={r['initial_value']}  inj={inj_str}  P/L={r['P/L']}  Sharpe={sharpe_str}")
+
+    # Machine-readable summary the scheduled task greps for its final report.
+    if injections:
+        print(f"INJECTION_DETECTED {len(injections)}:")
+        for date, amt, iv in injections:
+            print(f"  {date}  +${amt:,.2f}  → cost basis now ${iv:,.2f}")
+    else:
+        print("INJECTION_NONE")
     return 0
 
 

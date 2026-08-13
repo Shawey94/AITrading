@@ -28,6 +28,7 @@ def load(path):
                 "date": datetime.strptime(r["date"], "%Y-%m-%d"),
                 "total_value": float(r["total_value"]),
                 "initial_value": float(r["initial_value"]),
+                "injection": float(r.get("Injection") or 0.0),
                 "pl": float(r["P/L"]),
                 "pl_pct": float(r["P/L_percent"]),
             })
@@ -37,7 +38,12 @@ def load(path):
 def plot(rows, out_path, src_name):
     dates = [r["date"] for r in rows]
     values = [r["total_value"] for r in rows]
-    initial = rows[0]["initial_value"]
+    # Cost basis is a STEP function: it jumps on每次注资, so it must be tracked
+    # per-row. Using rows[0] would keep the baseline at the pre-injection capital
+    # and make the post-injection curve look like profit it never earned.
+    basis = [r["initial_value"] for r in rows]
+    initial = basis[-1]
+    injections = [r for r in rows if r["injection"]]
     final = values[-1]
     final_pl = rows[-1]["pl"]
     final_pl_pct = rows[-1]["pl_pct"] * 100
@@ -49,16 +55,42 @@ def plot(rows, out_path, src_name):
             markersize=6, markerfacecolor="white",
             markeredgecolor=line_color, label="Total Value")
 
-    ax.axhline(initial, color="#7a7a7a", linestyle="--", linewidth=1,
-               alpha=0.7, label=f"Initial ${initial:,.0f}")
+    if injections:
+        # Escape $ — an even number of them makes matplotlib parse the label as mathtext.
+        basis_label = (fr"Cost basis (\${basis[0]:,.0f} $\rightarrow$ \${initial:,.0f})")
+        # where="post" holds each value until the NEXT x, so the final step would be
+        # invisible when the injection lands on the last row. Extend by one day.
+        ax.step(dates + [dates[-1] + timedelta(days=1)], basis + [basis[-1]],
+                where="post", color="#7a7a7a", linestyle="--",
+                linewidth=1.2, alpha=0.8, label=basis_label)
+    else:
+        ax.axhline(initial, color="#7a7a7a", linestyle="--", linewidth=1,
+                   alpha=0.7, label=f"Initial ${initial:,.0f}")
 
     if len(rows) > 1:
-        ax.fill_between(dates, values, initial,
-                        where=[v >= initial for v in values],
-                        color="#2f7ed8", alpha=0.10, interpolate=True)
-        ax.fill_between(dates, values, initial,
-                        where=[v < initial for v in values],
-                        color="#d04848", alpha=0.10, interpolate=True)
+        # A stepped basis needs a stepped fill; a flat one keeps the smoother
+        # interpolated fill it always had.
+        fill_kw = dict(step="post") if injections else dict(interpolate=True)
+        ax.fill_between(dates, values, basis,
+                        where=[v >= b for v, b in zip(values, basis)],
+                        color="#2f7ed8", alpha=0.10, **fill_kw)
+        ax.fill_between(dates, values, basis,
+                        where=[v < b for v, b in zip(values, basis)],
+                        color="#d04848", alpha=0.10, **fill_kw)
+
+    # Mark每笔注资 so a jump in total value is never mistaken for a gain.
+    for i, r in enumerate(injections):
+        ax.axvline(r["date"], color="#e08a1e", linestyle=":", linewidth=1.4, alpha=0.85,
+                   label="Injection" if i == 0 else None)
+        # Pin the label to the top of the axes (blended transform) and hang it to the
+        # LEFT of the line, so an injection on the final day isn't clipped off-canvas.
+        ax.annotate(fr"+\${r['injection']:,.2f}",
+                    # blended transform skips date unit conversion → convert manually
+                    xy=(mdates.date2num(r["date"]), 0.985),
+                    xycoords=ax.get_xaxis_transform(),
+                    xytext=(-4, 0), textcoords="offset points",
+                    fontsize=8.5, color="#b06a10", fontweight="bold",
+                    ha="right", va="top", rotation=90)
 
     ax.annotate(f"Start\n${values[0]:,.0f}", xy=(dates[0], values[0]),
                 xytext=(8, 14), textcoords="offset points",
@@ -104,8 +136,11 @@ def plot(rows, out_path, src_name):
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"${x:,.0f}"))
     ax.legend(loc="lower left", frameon=False, fontsize=9)
 
+    inj_note = ""
+    if injections:
+        inj_note = fr"  ·  Injected \${sum(r['injection'] for r in injections):,.2f}"
     fig.text(0.99, 0.01,
-             f"Source: {src_name}  ·  Updated {rows[-1]['date']:%Y-%m-%d}",
+             f"Source: {src_name}  ·  Updated {rows[-1]['date']:%Y-%m-%d}{inj_note}",
              ha="right", va="bottom", fontsize=8, color="#888")
 
     fig.tight_layout()
